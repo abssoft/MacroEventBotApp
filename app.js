@@ -5,9 +5,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('registrationForm');
     const submitButton = document.getElementById('submitButton');
     const statusMessage = document.getElementById('statusMessage');
+    const nameInput = document.getElementById('name'); // <-- 1. Находим поле для имени
 
     // URL вашего нового вебхука из n8n
     const N8N_WEBHOOK_URL = 'https://n8n.n.macroserver.ru/webhook/register-for-macro-event';
+
+    // --- НАЧАЛО НОВОГО БЛОКА ---
+    // Получаем данные пользователя из Telegram
+    const user = tg.initDataUnsafe.user;
+
+    // Проверяем, что данные пользователя и имя существуют, и подставляем в поле
+    if (user && user.first_name) {
+        nameInput.value = user.first_name;
+    }
+    // --- КОНЕЦ НОВОГО БЛОКА ---
+
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -15,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusMessage.textContent = 'Отправка...';
 
         const formData = {
-            name: document.getElementById('name').value,
+            name: nameInput.value, // <-- Используем nameInput для получения значения
             company: document.getElementById('company').value,
             phone: document.getElementById('phone').value,
             email: document.getElementById('email').value,
