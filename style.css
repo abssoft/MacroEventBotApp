@@ -1,0 +1,89 @@
+:root {
+    --tg-bg: var(--tg-theme-bg-color, #ffffff);
+    --tg-text: var(--tg-theme-text-color, #000000);
+    --tg-hint: var(--tg-theme-hint-color, #999999);
+    --tg-button: var(--tg-theme-button-color, #007aff);
+    --tg-button-text: var(--tg-theme-button-text-color, #ffffff);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--tg-bg);
+    color: var(--tg-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.app-header {
+    background-color: #ffffff;
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.logo {
+    height: 32px;
+    width: 32px;
+    margin-right: 12px;
+}
+
+.app-header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: #000000;
+}
+
+.form-container {
+    padding: 20px 15px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: var(--tg-hint);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--tg-hint);
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: var(--tg-bg);
+    color: var(--tg-text);
+    box-sizing: border-box;
+}
+
+button {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    background-color: var(--tg-button);
+    color: var(--tg-button-text);
+    transition: opacity 0.2s;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#statusMessage {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 14px;
+}
