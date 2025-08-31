@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMessage = document.getElementById('statusMessage');
 
     // URL вашего нового вебхука из n8n
-    const N8N_WEBHOOK_URL = 'https://n8n.n.macroserver.ru/webhook/register-for-macro-event';
+    const N8N_WEBHOOK_URL = 'https://n8n.n.macroserver.ru/webhook-test/register-for-macro-event';
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
