@@ -7,17 +7,13 @@ export function configureMainButton({ text, onClick, visible }) {
   if (!WebApp) return;
   const MB = WebApp.MainButton;
   if (!MB) return;
-  if (typeof MB.hide === 'function') MB.hide();
+  // Always keep the Telegram MainButton hidden and detach any previous handlers.
+  try { if (typeof MB.hide === 'function') MB.hide(); } catch (_) {}
   if (lastMainButtonHandler && typeof MB.offClick === 'function') {
     try { MB.offClick(lastMainButtonHandler); } catch (_) {}
     lastMainButtonHandler = null;
   }
-  if (text) MB.setText(text);
-  if (onClick) {
-    MB.onClick(onClick);
-    lastMainButtonHandler = onClick;
-  }
-  if (visible && typeof MB.show === 'function') MB.show();
+  // Intentionally ignore text/onClick/visible to prevent showing or configuring the MainButton.
 }
 
 export function defaultNameFromTelegram() {
