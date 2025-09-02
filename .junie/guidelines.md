@@ -94,19 +94,7 @@
       "is_registered_for_current_event": true
     }
   }
-- Легаси формат:
-  {
-    "ok": true,
-    "data": {
-      "event_id": 42,
-      "event_title": "Macro Meetup",
-      "event_description": "Тема: n8n",
-      "event_short_description": "Meetup",
-      "attender_id": 1001,
-      "attender_name": "Иван Иванов",
-      "is_attender_registered": false
-    }
-  }
+
 
 Ошибки:
 - ok=false, error: { code: "EVENT_NOT_FOUND" | "AUTH_INVALID_TG" | "INTERNAL", message: string }

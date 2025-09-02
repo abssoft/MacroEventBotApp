@@ -2,7 +2,10 @@
 // Responsible for communicating with n8n webhook using POST with unified envelope
 
 const APP_VERSION = '1.0.0';
-const API_URL = 'https://n8n.n.macroserver.ru/webhook-test/register-for-macro-event';
+const IS_DEV = false;
+const API_URL = IS_DEV
+    ? 'https://n8n.n.macroserver.ru/webhook-test/register-for-macro-event'
+    : 'https://n8n.n.macroserver.ru/webhook/register-for-macro-event';
 
 function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
 
