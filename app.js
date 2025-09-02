@@ -24,7 +24,10 @@ import { configureMainButton, defaultNameFromTelegram } from './tg.js';
       placeholderPhone: '+7 (___) ___-__-__',
       emailLabel: 'Ваш eMail',
       placeholderEmail: 'name@example.com',
-      askRegister: (name) => `${name}, зарегистрировать вас?`,
+      askRegister: (name, eventTitle) => {
+        const t = (eventTitle || '').trim();
+        return t ? `${name}, зарегистрировать вас на мероприятие «${t}»?` : `${name}, зарегистрировать вас?`;
+      },
       registeredText: (title) => `Вы уже зарегистрированы на «${title}».`,
       openInTelegram: 'Откройте это приложение через Telegram для продолжения.',
       eventTitle: (title) => `${title}`,
@@ -330,9 +333,10 @@ import { configureMainButton, defaultNameFromTelegram } from './tg.js';
 
     if (state.phase === 'ui_offer_register') {
       const name = state.temp.nameInput || state.user?.name || defaultNameFromTelegram() || '';
+      const title = state.event?.title || '';
       app.innerHTML = `
         <div class="section">
-          <p>${T.askRegister(escapeHtml(name))}</p>
+          <p>${T.askRegister(escapeHtml(name), escapeHtml(title))}</p>
           <div class="row">
             ${button({ id: 'btn-offer-register' }, T.register)}
             <div class="gap-8"></div>
