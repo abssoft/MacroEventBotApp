@@ -87,3 +87,102 @@ button:disabled {
     margin-top: 15px;
     font-size: 14px;
 }
+
+/* === Macro Event WebApp additions === */
+.container {
+  padding: 20px 15px;
+}
+
+.section {
+  margin: 0 auto;
+  max-width: 560px;
+}
+
+.section.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--tg-hint);
+  border-top-color: var(--tg-button);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 12px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.muted {
+  color: var(--tg-hint);
+}
+
+.label {
+  display: block;
+  font-size: 14px;
+  color: var(--tg-hint);
+  margin: 12px 0 6px;
+}
+
+.input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--tg-hint);
+  border-radius: 8px;
+  font-size: 16px;
+  background-color: var(--tg-bg);
+  color: var(--tg-text);
+  box-sizing: border-box;
+}
+
+.btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: var(--tg-button);
+  color: var(--tg-button-text);
+  transition: opacity 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--tg-button);
+  border: 1px solid var(--tg-button);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.gap {
+  height: 12px;
+}
+
+.gap-8 {
+  width: 8px;
+}
+
+.error {
+  color: #b00020;
+}

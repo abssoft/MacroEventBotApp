@@ -1,50 +1,435 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const tg = window.Telegram.WebApp;
-    tg.expand();
+// Macro Event Telegram WebApp frontend
+// Implements state-driven UI and a single backend hook for n8n
+(function () {
+  'use strict';
 
-    const form = document.getElementById('registrationForm');
-    const submitButton = document.getElementById('submitButton');
-    const statusMessage = document.getElementById('statusMessage');
+  const APP_VERSION = '1.0.0';
+  // Configure your n8n webhook URL here
+  const API_URL = 'https://n8n.n.macroserver.ru/webhook-test/macro-event';
+  const SNAPSHOT_KEY = 'macro_event_snapshot_v1';
 
-    // URL вашего нового вебхука из n8n
-    const N8N_WEBHOOK_URL = 'https://n8n.n.macroserver.ru/webhook/register-for-macro-event';
+  const STRINGS = {
+    ru: {
+      loading: 'Загрузка... ',
+      noEvent: 'Пока нет запланированных мероприятий.',
+      refresh: 'Обновить',
+      register: 'Зарегистрировать',
+      unregister: 'Отменить регистрацию',
+      changeName: 'Изменить имя',
+      errorTitle: 'Произошла ошибка',
+      retry: 'Повторить',
+      nameLabel: 'Ваше имя',
+      placeholderName: 'Введите имя',
+      askRegister: (name) => `${name}, зарегистрировать вас?`,
+      registeredText: (title) => `Вы уже зарегистрированы на «${title}».`,
+      openInTelegram: 'Откройте это приложение через Telegram для продолжения.',
+      eventTitle: (title) => `${title}`,
+      invalidName: 'Имя должно быть от 2 до 64 символов, только буквы, пробелы и дефисы.'
+    }
+  };
+  const T = STRINGS.ru;
 
-    form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        submitButton.disabled = true;
-        statusMessage.textContent = 'Отправка...';
+  const el = {
+    app: null,
+  };
 
-        const formData = {
-            name: document.getElementById('name').value,
-            company: document.getElementById('company').value,
-            phone: document.getElementById('phone').value,
-            email: document.getElementById('email').value,
-        };
+  const state = {
+    phase: 'idle', // idle | loading_bootstrap | loading_action | ui_empty | ui_registration_form | ui_offer_register | ui_registered | ui_error
+    event: null,
+    user: null,
+    is_registered_for_current_event: false,
+    error: null,
+    temp: {
+      nameInput: '',
+      editingName: false,
+    },
+    pending: false,
+  };
 
-        try {
-            const response = await fetch(N8N_WEBHOOK_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                // Отправляем и данные формы, и initData для валидации
-                body: JSON.stringify({
-                    formData: formData,
-                    initData: tg.initData
-                })
-            });
+  function saveSnapshot() {
+    try {
+      const snap = {
+        event: state.event,
+        user: state.user,
+        is_registered_for_current_event: state.is_registered_for_current_event,
+        phase: state.phase.startsWith('ui_') ? state.phase : 'ui_empty'
+      };
+      sessionStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap));
+    } catch (_) {}
+  }
 
-            if (response.ok) {
-                statusMessage.textContent = 'Вы успешно зарегистрированы!';
-                // Сообщаем Telegram, что все прошло хорошо и можно закрывать приложение
-                tg.close();
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Ошибка регистрации.');
-            }
-        } catch (error) {
-            statusMessage.textContent = `Ошибка: ${error.message}`;
-            submitButton.disabled = false;
+  function loadSnapshot() {
+    try {
+      const txt = sessionStorage.getItem(SNAPSHOT_KEY);
+      if (!txt) return null;
+      return JSON.parse(txt);
+    } catch (_) { return null; }
+  }
+
+  function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+  async function fetchWithRetry(url, fetchOptions, opts = {}) {
+    const { timeoutMs = 12000, retries = 2, retryDelays = [300, 1000], signal } = opts;
+
+    let attempt = 0;
+    let lastError;
+
+    while (attempt <= retries) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(new Error('timeout')), timeoutMs);
+
+      try {
+        const mergedSignal = mergeSignals(signal, controller.signal);
+        const res = await fetch(url, { ...fetchOptions, signal: mergedSignal });
+        clearTimeout(timeoutId);
+
+        // Try parse JSON always
+        let data;
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const text = await res.text();
+          try { data = JSON.parse(text); } catch { data = { ok: false, error: { code: 'INVALID_RESPONSE', message: 'Неверный формат ответа.' } }; }
         }
-    });
-});
+
+        if (!res.ok) {
+          // HTTP error - retriable if 5xx
+          const httpError = new Error(`HTTP ${res.status}`);
+          httpError.response = res;
+          httpError.data = data;
+          if (res.status >= 500 && attempt < retries) {
+            attempt++;
+            await sleep(retryDelays[Math.min(attempt - 1, retryDelays.length - 1)]);
+            continue;
+          }
+          throw httpError;
+        }
+
+        return data;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        lastError = err;
+        const retriable = isRetriableError(err);
+        if (retriable && attempt < retries) {
+          attempt++;
+          await sleep(retryDelays[Math.min(attempt - 1, retryDelays.length - 1)]);
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError;
+  }
+
+  function mergeSignals(a, b) {
+    if (!a) return b;
+    if (!b) return a;
+    const controller = new AbortController();
+    const onAbort = () => controller.abort(a.aborted ? a.reason : b.reason);
+    a.addEventListener('abort', onAbort);
+    b.addEventListener('abort', onAbort);
+    if (a.aborted || b.aborted) controller.abort();
+    return controller.signal;
+  }
+
+  function isRetriableError(err) {
+    if (!err) return false;
+    if (err.name === 'AbortError') return false; // timeout treated as non-retriable beyond configured loop
+    // Network error or 5xx handled in fetchWithRetry
+    return true;
+  }
+
+  async function useBackendAction(action, data = {}, opts = {}) {
+    const WebApp = window.Telegram?.WebApp;
+    const body = {
+      action,
+      data,
+      meta: {
+        tgInitData: WebApp?.initData || '',
+        appVersion: APP_VERSION,
+      }
+    };
+
+    const res = await fetchWithRetry(
+      API_URL,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      },
+      { timeoutMs: opts.timeoutMs ?? 12000, signal: opts.signal }
+    );
+
+    // Expect { ok, data?, error? }
+    if (typeof res !== 'object' || res === null || typeof res.ok !== 'boolean') {
+      throw new Error('Неверный формат ответа сервера.');
+    }
+    return res;
+  }
+
+  function defaultNameFromTelegram() {
+    const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (!u) return '';
+    return [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+  }
+
+  function validateName(name) {
+    const n = (name || '').trim();
+    if (n.length < 2 || n.length > 64) return { valid: false, message: T.invalidName };
+    const re = /^[A-Za-zА-Яа-яЁё\-\s]+$/;
+    if (!re.test(n)) return { valid: false, message: T.invalidName };
+    return { valid: true, value: n };
+  }
+
+  function setPhase(newPhase) {
+    state.phase = newPhase;
+    render();
+  }
+
+  async function bootstrap() {
+    state.error = null;
+    setPhase('loading_bootstrap');
+    try {
+      const resp = await useBackendAction('bootstrap', {});
+      if (resp.ok) {
+        const { event, user, is_registered_for_current_event } = resp.data || {};
+        state.event = event || null;
+        state.user = user || null;
+        state.is_registered_for_current_event = Boolean(is_registered_for_current_event);
+        if (!state.event) {
+          setPhase('ui_empty');
+        } else if (!state.user) {
+          state.temp.nameInput = state.temp.nameInput || defaultNameFromTelegram();
+          setPhase('ui_registration_form');
+        } else if (state.user && !state.is_registered_for_current_event) {
+          state.temp.nameInput = state.user.name || state.temp.nameInput || defaultNameFromTelegram();
+          setPhase('ui_offer_register');
+        } else {
+          setPhase('ui_registered');
+        }
+        saveSnapshot();
+      } else {
+        // business error - still can display something
+        state.error = resp.error || { message: 'Неизвестная ошибка.' };
+        setPhase('ui_error');
+      }
+    } catch (e) {
+      state.error = { code: 'NETWORK', message: e?.message || 'Сеть недоступна' };
+      setPhase('ui_error');
+    }
+  }
+
+  async function register(name) {
+    const v = validateName(name);
+    if (!v.valid) {
+      state.error = { code: 'VALIDATION_ERROR', message: v.message };
+      setPhase('ui_error');
+      return;
+    }
+    state.pending = true;
+    setPhase('loading_action');
+    try {
+      const resp = await useBackendAction('register', { name: v.value });
+      if (!resp.ok) {
+        state.error = resp.error || { code: 'INTERNAL', message: 'Ошибка регистрации' };
+        setPhase('ui_error');
+      } else {
+        await bootstrap();
+      }
+    } catch (e) {
+      state.error = { code: 'NETWORK', message: e?.message || 'Сеть недоступна' };
+      setPhase('ui_error');
+    } finally {
+      state.pending = false;
+    }
+  }
+
+  async function unregister(eventId) {
+    if (!eventId) return;
+    state.pending = true;
+    setPhase('loading_action');
+    try {
+      const resp = await useBackendAction('unregister', { eventId });
+      if (!resp.ok) {
+        state.error = resp.error || { code: 'INTERNAL', message: 'Ошибка отмены регистрации' };
+        setPhase('ui_error');
+      } else {
+        await bootstrap();
+      }
+    } catch (e) {
+      state.error = { code: 'NETWORK', message: e?.message || 'Сеть недоступна' };
+      setPhase('ui_error');
+    } finally {
+      state.pending = false;
+    }
+  }
+
+  // Telegram MainButton helpers
+  let lastMainButtonHandler = null;
+  function configureMainButton({ text, onClick, visible }) {
+    const WebApp = window.Telegram?.WebApp;
+    if (!WebApp) return;
+    const MB = WebApp.MainButton;
+    if (!MB) return;
+    if (typeof MB.hide === 'function') MB.hide();
+    if (lastMainButtonHandler && typeof MB.offClick === 'function') {
+      try { MB.offClick(lastMainButtonHandler); } catch (_) {}
+      lastMainButtonHandler = null;
+    }
+    if (text) MB.setText(text);
+    if (onClick) {
+      MB.onClick(onClick);
+      lastMainButtonHandler = onClick;
+    }
+    if (visible && typeof MB.show === 'function') MB.show();
+  }
+
+  function button(attrs, text) {
+    const { id, className = '', disabled = false, variant = 'primary' } = attrs || {};
+    const cls = ['btn', variant === 'secondary' ? 'btn-secondary' : ''].filter(Boolean).join(' ');
+    return `<button ${id ? `id="${id}"` : ''} class="${cls} ${className}" ${disabled ? 'disabled' : ''}>${text}</button>`;
+  }
+
+  function render() {
+    const WebApp = window.Telegram?.WebApp;
+    const app = el.app || (el.app = document.getElementById('app'));
+    if (!app) return;
+
+    // Default hide main button each render, then selectively enable
+    configureMainButton({ text: '', onClick: null, visible: false });
+
+    // Non-Telegram environment handling
+    if (!WebApp) {
+      app.innerHTML = `
+        <div class="section">
+          <p>${T.openInTelegram}</p>
+        </div>
+      `;
+      return;
+    }
+
+    if (state.phase === 'loading_bootstrap' || state.phase === 'loading_action' || state.phase === 'idle') {
+      app.innerHTML = `
+        <div class="section center">
+          <div class="spinner" aria-label="${T.loading}"></div>
+          <p>${T.loading}</p>
+        </div>`;
+      WebApp.expand && WebApp.expand();
+      return;
+    }
+
+    if (state.phase === 'ui_empty') {
+      app.innerHTML = `
+        <div class="section">
+          <p>${T.noEvent}</p>
+          ${button({ id: 'btn-refresh' }, T.refresh)}
+        </div>`;
+      const btn = document.getElementById('btn-refresh');
+      btn.onclick = () => bootstrap();
+      configureMainButton({ text: T.refresh, onClick: () => bootstrap(), visible: true });
+      return;
+    }
+
+    if (state.phase === 'ui_registration_form') {
+      const title = state.event?.title || '';
+      const description = state.event?.description || '';
+      const nameValue = state.temp.nameInput || defaultNameFromTelegram();
+      app.innerHTML = `
+        <div class="section">
+          ${title ? `<h2 class="title">${T.eventTitle(title)}</h2>` : ''}
+          ${description ? `<p class="muted">${description}</p>` : ''}
+          <label for="name" class="label">${T.nameLabel}</label>
+          <input id="name" type="text" class="input" placeholder="${T.placeholderName}" value="${escapeHtml(nameValue)}" ${state.pending ? 'disabled' : ''} />
+          <div class="gap"></div>
+          ${button({ id: 'btn-register' }, T.register)}
+        </div>`;
+      const input = document.getElementById('name');
+      input.oninput = (e) => (state.temp.nameInput = e.target.value);
+      const onReg = () => { if (!state.pending) register(input.value); };
+      document.getElementById('btn-register').onclick = onReg;
+      configureMainButton({ text: T.register, onClick: onReg, visible: true });
+      return;
+    }
+
+    if (state.phase === 'ui_offer_register') {
+      const name = state.temp.nameInput || state.user?.name || defaultNameFromTelegram() || '';
+      app.innerHTML = `
+        <div class="section">
+          <p>${T.askRegister(escapeHtml(name))}</p>
+          <div class="row">
+            ${button({ id: 'btn-offer-register' }, T.register)}
+            <div class="gap-8"></div>
+            ${button({ id: 'btn-edit-name', variant: 'secondary' }, T.changeName)}
+          </div>
+        </div>`;
+      const onReg = () => { if (!state.pending) register(name); };
+      document.getElementById('btn-offer-register').onclick = onReg;
+      document.getElementById('btn-edit-name').onclick = () => setPhase('ui_registration_form');
+      configureMainButton({ text: T.register, onClick: onReg, visible: true });
+      return;
+    }
+
+    if (state.phase === 'ui_registered') {
+      const title = state.event?.title || '';
+      app.innerHTML = `
+        <div class="section">
+          <p>${T.registeredText(escapeHtml(title))}</p>
+          ${button({ id: 'btn-unregister', variant: 'secondary' }, T.unregister)}
+        </div>`;
+      const onUnreg = () => { if (!state.pending) unregister(state.event?.id); };
+      document.getElementById('btn-unregister').onclick = onUnreg;
+      configureMainButton({ text: T.unregister, onClick: onUnreg, visible: true });
+      return;
+    }
+
+    if (state.phase === 'ui_error') {
+      const msg = state.error?.message || 'Неизвестная ошибка';
+      app.innerHTML = `
+        <div class="section">
+          <p class="error">${escapeHtml(T.errorTitle)}: ${escapeHtml(msg)}</p>
+          ${button({ id: 'btn-retry' }, T.retry)}
+        </div>`;
+      document.getElementById('btn-retry').onclick = () => bootstrap();
+      configureMainButton({ text: T.retry, onClick: () => bootstrap(), visible: true });
+      return;
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // Init
+  document.addEventListener('DOMContentLoaded', () => {
+    el.app = document.getElementById('app');
+
+    // Render snapshot if any to reduce perceived latency
+    const snap = loadSnapshot();
+    if (snap) {
+      state.event = snap.event || null;
+      state.user = snap.user || null;
+      state.is_registered_for_current_event = !!snap.is_registered_for_current_event;
+      state.phase = snap.phase || 'ui_empty';
+      render();
+    } else {
+      render();
+    }
+
+    const WebApp = window.Telegram?.WebApp;
+    if (WebApp) {
+      try { WebApp.expand && WebApp.expand(); WebApp.ready && WebApp.ready(); } catch (_) {}
+      bootstrap();
+    } else {
+      // No Telegram env
+      state.phase = 'ui_error';
+      state.error = { code: 'NO_TELEGRAM', message: T.openInTelegram };
+      render();
+    }
+  });
+})();

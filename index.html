@@ -3,37 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Регистрация на вебинар</title>
+    <title>Macro Event WebApp</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header class="app-header">
         <img src="https://macroserver.ru/apple-touch-icon-114x114-precomposed.png" alt="Macro Logo" class="logo">
-        <h1>Регистрация на вебинар</h1>
+        <h1>Macro Event</h1>
     </header>
 
-    <main class="form-container">
-        <form id="registrationForm">
-            <div class="form-group">
-                <label for="name">Ваше имя</label>
-                <input type="text" id="name" name="name" required>
-            </div>
-            <div class="form-group">
-                <label for="company">Компания</label>
-                <input type="text" id="company" name="company" required>
-            </div>
-            <div class="form-group">
-                <label for="phone">Ваш телефон</label>
-                <input type="tel" id="phone" name="phone" required>
-            </div>
-            <div class="form-group">
-                <label for="email">Ваш eMail</label>
-                <input type="email" id="email" name="email" required>
-            </div>
-            <button type="submit" id="submitButton">Зарегистрироваться</button>
-        </form>
-        <p id="statusMessage"></p>
-    </main>
+    <main id="app" class="container" aria-live="polite"></main>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="app.js"></script>
