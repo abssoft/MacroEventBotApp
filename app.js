@@ -28,7 +28,7 @@ import { configureMainButton, defaultNameFromTelegram } from './tg.js';
         const t = (eventTitle || '').trim();
         return t ? `${name}, зарегистрировать вас на мероприятие «${t}»?` : `${name}, зарегистрировать вас?`;
       },
-      registeredText: (title) => `Вы уже зарегистрированы на «${title}».`,
+      registeredText: (title) => `Вы зарегистрированы на «${title}».`,
       openInTelegram: 'Откройте это приложение через Telegram для продолжения.',
       eventTitle: (title) => `${title}`,
       invalidName: 'Имя должно быть от 2 до 64 символов, только буквы, пробелы и дефисы.',
