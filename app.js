@@ -152,11 +152,44 @@
     return true;
   }
 
+  function collectTelegramContext() {
+    try {
+      const WebApp = window.Telegram?.WebApp;
+      if (!WebApp) return null;
+      const iu = WebApp.initDataUnsafe || {};
+      const theme = WebApp.themeParams || {};
+      return {
+        initData: WebApp.initData || '',
+        initDataUnsafe: {
+          user: iu.user || null,
+          chat: iu.chat || null,
+          receiver: iu.receiver || null,
+          start_param: iu.start_param || null,
+          auth_date: iu.auth_date || null,
+          hash: iu.hash || null,
+          can_send_after: iu.can_send_after || null,
+          query_id: iu.query_id || null,
+        },
+        user: iu.user || null,
+        platform: WebApp.platform || null,
+        version: WebApp.version || null,
+        colorScheme: WebApp.colorScheme || null,
+        themeParams: theme,
+        isExpanded: typeof WebApp.isExpanded === 'boolean' ? WebApp.isExpanded : null,
+        viewportHeight: WebApp?.viewportHeight ?? null,
+        viewportStableHeight: WebApp?.viewportStableHeight ?? null,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
   async function useBackendAction(action, data = {}, opts = {}) {
     const WebApp = window.Telegram?.WebApp;
     const body = {
       action,
       data,
+      tg: collectTelegramContext(),
       meta: {
         tgInitData: WebApp?.initData || '',
         appVersion: APP_VERSION,
