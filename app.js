@@ -238,10 +238,38 @@
     try {
       const resp = await useBackendAction('bootstrap', {});
       if (resp.ok) {
-        const { event, user, is_registered_for_current_event } = resp.data || {};
-        state.event = event || null;
-        state.user = user || null;
-        state.is_registered_for_current_event = Boolean(is_registered_for_current_event);
+        const d = resp.data || {};
+        // Backward-compatible mapping for new flat bootstrap structure
+        const mappedEvent = (d.event !== undefined) ? (d.event || null) : (
+          (d.event_id || d.event_title || d.event_description || d.event_short_description)
+            ? {
+                id: d.event_id ?? null,
+                title: d.event_title ?? '',
+                description: d.event_description ?? '',
+                short_description: d.event_short_description ?? ''
+              }
+            : null
+        );
+        const mappedUser = (d.user !== undefined) ? (d.user || null) : (
+          (d.attender_id || d.attender_name)
+            ? {
+                id: d.attender_id ?? null,
+                name: d.attender_name ?? ''
+              }
+            : null
+        );
+        const mappedIsReg = Boolean(
+          d.is_registered_for_current_event ?? d.is_attender_registered ?? false
+        );
+
+        // If mappedEvent has no meaningful data, normalize to null
+        const eventHasData = mappedEvent && (mappedEvent.id || mappedEvent.title || mappedEvent.description || mappedEvent.short_description);
+        state.event = eventHasData ? mappedEvent : null;
+        // If mappedUser has no meaningful data, normalize to null
+        const userHasData = mappedUser && (mappedUser.id || mappedUser.name || mappedUser.company || mappedUser.phone || mappedUser.email);
+        state.user = userHasData ? mappedUser : null;
+        state.is_registered_for_current_event = mappedIsReg;
+
         if (!state.event) {
           setPhase('ui_empty');
         } else if (!state.user) {
