@@ -20,11 +20,20 @@
       retry: 'Повторить',
       nameLabel: 'Ваше имя',
       placeholderName: 'Введите имя',
+      companyLabel: 'Компания',
+      placeholderCompany: 'Укажите компанию',
+      phoneLabel: 'Ваш телефон',
+      placeholderPhone: '+7 (___) ___-__-__',
+      emailLabel: 'Ваш eMail',
+      placeholderEmail: 'name@example.com',
       askRegister: (name) => `${name}, зарегистрировать вас?`,
       registeredText: (title) => `Вы уже зарегистрированы на «${title}».`,
       openInTelegram: 'Откройте это приложение через Telegram для продолжения.',
       eventTitle: (title) => `${title}`,
-      invalidName: 'Имя должно быть от 2 до 64 символов, только буквы, пробелы и дефисы.'
+      invalidName: 'Имя должно быть от 2 до 64 символов, только буквы, пробелы и дефисы.',
+      invalidCompany: 'Укажите название компании (от 2 символов).',
+      invalidPhone: 'Укажите корректный номер телефона (минимум 7 цифр).',
+      invalidEmail: 'Укажите корректный e-mail.'
     }
   };
   const T = STRINGS.ru;
@@ -41,6 +50,9 @@
     error: null,
     temp: {
       nameInput: '',
+      companyInput: '',
+      phoneInput: '',
+      emailInput: '',
       editingName: false,
     },
     pending: false,
@@ -201,9 +213,15 @@
           setPhase('ui_empty');
         } else if (!state.user) {
           state.temp.nameInput = state.temp.nameInput || defaultNameFromTelegram();
+          state.temp.companyInput = state.temp.companyInput || '';
+          state.temp.phoneInput = state.temp.phoneInput || '';
+          state.temp.emailInput = state.temp.emailInput || '';
           setPhase('ui_registration_form');
         } else if (state.user && !state.is_registered_for_current_event) {
           state.temp.nameInput = state.user.name || state.temp.nameInput || defaultNameFromTelegram();
+          state.temp.companyInput = state.user.company || state.temp.companyInput || '';
+          state.temp.phoneInput = state.user.phone || state.temp.phoneInput || '';
+          state.temp.emailInput = state.user.email || state.temp.emailInput || '';
           setPhase('ui_offer_register');
         } else {
           setPhase('ui_registered');
@@ -220,17 +238,50 @@
     }
   }
 
-  async function register(name) {
-    const v = validateName(name);
-    if (!v.valid) {
-      state.error = { code: 'VALIDATION_ERROR', message: v.message };
+  function validateCompany(company) {
+    const c = (company || '').trim();
+    if (c.length < 2) return { valid: false, message: T.invalidCompany };
+    return { valid: true, value: c };
+  }
+
+  function validatePhone(phone) {
+    const p = (phone || '').trim();
+    const digits = p.replace(/\D+/g, '');
+    if (digits.length < 7) return { valid: false, message: T.invalidPhone };
+    return { valid: true, value: p };
+  }
+
+  function validateEmail(email) {
+    const e = (email || '').trim();
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!re.test(e)) return { valid: false, message: T.invalidEmail };
+    return { valid: true, value: e };
+  }
+
+  async function register(payload) {
+    const { name, company, phone, email } = payload || {};
+    const vName = validateName(name);
+    if (!vName.valid) {
+      state.error = { code: 'VALIDATION_ERROR', message: vName.message };
       setPhase('ui_error');
       return;
     }
+    const vCompany = validateCompany(company);
+    if (!vCompany.valid) { state.error = { code: 'VALIDATION_ERROR', message: vCompany.message }; setPhase('ui_error'); return; }
+    const vPhone = validatePhone(phone);
+    if (!vPhone.valid) { state.error = { code: 'VALIDATION_ERROR', message: vPhone.message }; setPhase('ui_error'); return; }
+    const vEmail = validateEmail(email);
+    if (!vEmail.valid) { state.error = { code: 'VALIDATION_ERROR', message: vEmail.message }; setPhase('ui_error'); return; }
+
     state.pending = true;
     setPhase('loading_action');
     try {
-      const resp = await useBackendAction('register', { name: v.value });
+      const resp = await useBackendAction('register', {
+        name: vName.value,
+        company: vCompany.value,
+        phone: vPhone.value,
+        email: vEmail.value,
+      });
       if (!resp.ok) {
         state.error = resp.error || { code: 'INTERNAL', message: 'Ошибка регистрации' };
         setPhase('ui_error');
@@ -335,18 +386,41 @@
       const title = state.event?.title || '';
       const description = state.event?.description || '';
       const nameValue = state.temp.nameInput || defaultNameFromTelegram();
+      const companyValue = state.temp.companyInput || '';
+      const phoneValue = state.temp.phoneInput || '';
+      const emailValue = state.temp.emailInput || '';
       app.innerHTML = `
         <div class="section">
-          ${title ? `<h2 class="title">${T.eventTitle(title)}</h2>` : ''}
-          ${description ? `<p class="muted">${description}</p>` : ''}
+          ${title ? `<h2 class=\"title\">${T.eventTitle(title)}</h2>` : ''}
+          ${description ? `<p class=\"muted\">${description}</p>` : ''}
           <label for="name" class="label">${T.nameLabel}</label>
           <input id="name" type="text" class="input" placeholder="${T.placeholderName}" value="${escapeHtml(nameValue)}" ${state.pending ? 'disabled' : ''} />
+          <label for="company" class="label">${T.companyLabel}</label>
+          <input id="company" type="text" class="input" placeholder="${T.placeholderCompany}" value="${escapeHtml(companyValue)}" ${state.pending ? 'disabled' : ''} />
+          <label for="phone" class="label">${T.phoneLabel}</label>
+          <input id="phone" type="tel" class="input" placeholder="${T.placeholderPhone}" value="${escapeHtml(phoneValue)}" ${state.pending ? 'disabled' : ''} />
+          <label for="email" class="label">${T.emailLabel}</label>
+          <input id="email" type="email" class="input" placeholder="${T.placeholderEmail}" value="${escapeHtml(emailValue)}" ${state.pending ? 'disabled' : ''} />
           <div class="gap"></div>
           ${button({ id: 'btn-register' }, T.register)}
         </div>`;
-      const input = document.getElementById('name');
-      input.oninput = (e) => (state.temp.nameInput = e.target.value);
-      const onReg = () => { if (!state.pending) register(input.value); };
+      const nameEl = document.getElementById('name');
+      const companyEl = document.getElementById('company');
+      const phoneEl = document.getElementById('phone');
+      const emailEl = document.getElementById('email');
+      nameEl.oninput = (e) => (state.temp.nameInput = e.target.value);
+      companyEl.oninput = (e) => (state.temp.companyInput = e.target.value);
+      phoneEl.oninput = (e) => (state.temp.phoneInput = e.target.value);
+      emailEl.oninput = (e) => (state.temp.emailInput = e.target.value);
+      const onReg = () => {
+        if (state.pending) return;
+        register({
+          name: nameEl.value,
+          company: companyEl.value,
+          phone: phoneEl.value,
+          email: emailEl.value,
+        });
+      };
       document.getElementById('btn-register').onclick = onReg;
       configureMainButton({ text: T.register, onClick: onReg, visible: true });
       return;
@@ -363,7 +437,16 @@
             ${button({ id: 'btn-edit-name', variant: 'secondary' }, T.changeName)}
           </div>
         </div>`;
-      const onReg = () => { if (!state.pending) register(name); };
+      const onReg = () => {
+        if (state.pending) return;
+        const payload = {
+          name: state.temp.nameInput || state.user?.name || defaultNameFromTelegram() || '',
+          company: state.temp.companyInput || state.user?.company || '',
+          phone: state.temp.phoneInput || state.user?.phone || '',
+          email: state.temp.emailInput || state.user?.email || '',
+        };
+        register(payload);
+      };
       document.getElementById('btn-offer-register').onclick = onReg;
       document.getElementById('btn-edit-name').onclick = () => setPhase('ui_registration_form');
       configureMainButton({ text: T.register, onClick: onReg, visible: true });
