@@ -300,6 +300,7 @@ import { configureMainButton, defaultNameFromTelegram } from './tg.js';
         <div class="section">
           ${title ? `<h2 class=\"title\">${T.eventTitle(title)}</h2>` : ''}
           ${descHtml ? `<div class=\"muted rich-text\">${descHtml}</div>` : ''}
+          <h3>Заполните форму для регистрации</h3>
           <label for="name" class="label">${T.nameLabel}</label>
           <input id="name" type="text" class="input" placeholder="${T.placeholderName}" value="${escapeHtml(nameValue)}" ${state.pending ? 'disabled' : ''} />
           <label for="company" class="label">${T.companyLabel}</label>
