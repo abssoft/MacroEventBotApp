@@ -290,6 +290,8 @@ import { configureMainButton, defaultNameFromTelegram } from './tg.js';
     if (state.phase === 'ui_registration_form') {
       const title = state.event?.title || '';
       const description = state.event?.description || '';
+      const shortDescription = state.event?.short_description || '';
+      const descHtml = shortDescription || description;
       const nameValue = state.temp.nameInput || defaultNameFromTelegram();
       const companyValue = state.temp.companyInput || '';
       const phoneValue = state.temp.phoneInput || '';
@@ -297,7 +299,7 @@ import { configureMainButton, defaultNameFromTelegram } from './tg.js';
       app.innerHTML = `
         <div class="section">
           ${title ? `<h2 class=\"title\">${T.eventTitle(title)}</h2>` : ''}
-          ${description ? `<p class=\"muted\">${description}</p>` : ''}
+          ${descHtml ? `<div class=\"muted rich-text\">${descHtml}</div>` : ''}
           <label for="name" class="label">${T.nameLabel}</label>
           <input id="name" type="text" class="input" placeholder="${T.placeholderName}" value="${escapeHtml(nameValue)}" ${state.pending ? 'disabled' : ''} />
           <label for="company" class="label">${T.companyLabel}</label>
