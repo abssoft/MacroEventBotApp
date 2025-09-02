@@ -5,7 +5,7 @@
 
   const APP_VERSION = '1.0.0';
   // Configure your n8n webhook URL here
-  const API_URL = 'https://n8n.n.macroserver.ru/webhook-test/macro-event';
+  const API_URL = 'https://n8n.n.macroserver.ru/webhook-test/register-for-macro-event';
   const SNAPSHOT_KEY = 'macro_event_snapshot_v1';
 
   const STRINGS = {
