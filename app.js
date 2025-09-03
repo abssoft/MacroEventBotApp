@@ -341,7 +341,6 @@ import { configureMainButton, defaultNameFromTelegram } from './tg.js';
       app.innerHTML = `
         <div class="section">
           <p>${T.askRegister(escapeHtml(name), escapeHtml(title))}</p>
-          <p class="muted small consent-note"><a href="https://macroserver.ru/confidence.txt" target="_blank" rel="noopener noreferrer">Даю согласие на обработку персональных данных.</a></p>
           <div class="row">
             ${button({ id: 'btn-offer-register' }, T.register)}
             <div class="gap-8"></div>
