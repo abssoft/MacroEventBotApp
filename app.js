@@ -310,6 +310,7 @@ import { configureMainButton, defaultNameFromTelegram } from './tg.js';
           <label for="email" class="label">${T.emailLabel}</label>
           <input id="email" type="email" class="input" placeholder="${T.placeholderEmail}" value="${escapeHtml(emailValue)}" ${state.pending ? 'disabled' : ''} />
           <div class="gap"></div>
+          <p class="muted small consent-note">Отправляя эту форму я даю согласие на обработку <a href="https://macroserver.ru/confidence.txt" target="_blank" rel="noopener noreferrer">персональных данных</a>.</p>
           ${button({ id: 'btn-register' }, T.register)}
         </div>`;
       const nameEl = document.getElementById('name');
@@ -340,6 +341,7 @@ import { configureMainButton, defaultNameFromTelegram } from './tg.js';
       app.innerHTML = `
         <div class="section">
           <p>${T.askRegister(escapeHtml(name), escapeHtml(title))}</p>
+          <p class="muted small consent-note"><a href="https://macroserver.ru/confidence.txt" target="_blank" rel="noopener noreferrer">Даю согласие на обработку персональных данных.</a></p>
           <div class="row">
             ${button({ id: 'btn-offer-register' }, T.register)}
             <div class="gap-8"></div>

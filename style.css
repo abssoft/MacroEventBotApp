@@ -211,3 +211,16 @@ button:disabled {
   height: auto;
   border-radius: 6px;
 }
+
+
+/* Consent note: small, gray text before register buttons */
+.small {
+  font-size: 12px;
+}
+.consent-note {
+  margin: 6px 0 10px;
+}
+.consent-note a {
+  color: var(--tg-hint);
+  text-decoration: underline;
+}
